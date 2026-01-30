@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22225" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="DailyEntry" representedClassName="DailyEntry" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dayOfWeek" optional="YES" attributeType="String"/>
+
+        <!-- Medications -->
+        <attribute name="concertaTaken" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="concertaDose" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="concertaTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="estradiolApplied" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="estradiolDosage" optional="YES" attributeType="String"/>
+        <attribute name="nortryptilineTaken" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="nortryptilineDose" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
+
+        <!-- Sleep -->
+        <attribute name="hoursSlept" optional="YES" attributeType="Double" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="sleepQuality" optional="YES" attributeType="Integer 16" defaultValueString="3" usesScalarValueType="YES"/>
+        <attribute name="racingThoughts" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="weirdDreams" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+
+        <!-- Stress & Anxiety -->
+        <attribute name="stressTriggers" optional="YES" attributeType="String"/>
+        <attribute name="morningAnxiety" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="afternoonAnxiety" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="eveningAnxiety" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="physicalSymptoms" optional="YES" attributeType="String"/>
+
+        <!-- Focus & Functioning -->
+        <attribute name="brainFog" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="forgetfulness" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="forgetfulnessExamples" optional="YES" attributeType="String"/>
+
+        <!-- Fitness & Activity -->
+        <attribute name="physicallyActive" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="activityType" optional="YES" attributeType="String"/>
+        <attribute name="activityDuration" optional="YES" attributeType="String"/>
+
+        <!-- Nutrition -->
+        <attribute name="mealsCount" optional="YES" attributeType="Integer 16" defaultValueString="3" usesScalarValueType="YES"/>
+        <attribute name="foodQuality" optional="YES" attributeType="String"/>
+
+        <!-- General -->
+        <attribute name="overallMood" optional="YES" attributeType="String"/>
+        <attribute name="otherNotes" optional="YES" attributeType="String"/>
+    </entity>
+
+    <entity name="DreamLog" representedClassName="DreamLog" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dreamDescription" optional="YES" attributeType="String"/>
+        <attribute name="possibleTriggers" optional="YES" attributeType="String"/>
+    </entity>
+</model>
