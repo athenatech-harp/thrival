@@ -118,7 +118,7 @@ struct DetailSection<Content: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: icon)
-                    .foregroundStyle(.accentColor)
+                    .foregroundStyle(Color.accentColor)
                 Text(title)
                     .font(.headline)
             }

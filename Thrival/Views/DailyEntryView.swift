@@ -371,7 +371,7 @@ struct CollapsibleSection<Content: View>: View {
             Button(action: toggle) {
                 HStack {
                     Image(systemName: icon)
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                         .frame(width: 24)
 
                     Text(title)
