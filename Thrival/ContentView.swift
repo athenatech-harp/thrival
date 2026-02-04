@@ -15,6 +15,11 @@ struct ContentView: View {
                     Label("History", systemImage: "calendar")
                 }
 
+            InsightsView()
+                .tabItem {
+                    Label("Insights", systemImage: "sparkles")
+                }
+
             ChartsView()
                 .tabItem {
                     Label("Trends", systemImage: "chart.line.uptrend.xyaxis")

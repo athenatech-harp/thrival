@@ -95,7 +95,8 @@ struct EntryRow: View {
     let entry: DailyEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            // Date header
             HStack {
                 Text(entry.formattedDayOfWeek)
                     .font(.headline)
@@ -105,55 +106,53 @@ struct EntryRow: View {
                 Spacer()
             }
 
-            HStack(spacing: 16) {
-                // Anxiety indicator
-                anxietyIndicator
+            // Stats with clear labels
+            HStack(spacing: 12) {
+                StatBadge(
+                    icon: "heart.fill",
+                    label: "Anxiety",
+                    value: String(format: "%.1f", entry.averageAnxiety),
+                    color: anxietyColor
+                )
 
-                // Sleep indicator
-                sleepIndicator
+                StatBadge(
+                    icon: "bed.double.fill",
+                    label: "Sleep",
+                    value: String(format: "%.1fh", entry.hoursSlept),
+                    color: sleepColor
+                )
 
-                // Medications indicator
-                medicationsIndicator
+                StatBadge(
+                    icon: "brain.head.profile",
+                    label: "Focus",
+                    value: "\(5 - Int(entry.brainFog))/5",
+                    color: focusColor
+                )
+
+                StatBadge(
+                    icon: "pills.fill",
+                    label: "Meds",
+                    value: medicationStatus,
+                    color: medicationColor
+                )
 
                 Spacer()
             }
-            .font(.caption)
 
+            // Mood note if available
             if let mood = entry.overallMood, !mood.isEmpty {
-                Text(mood)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Image(systemName: "quote.opening")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Text(mood)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
         }
         .padding(.vertical, 4)
-    }
-
-    private var anxietyIndicator: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "heart.fill")
-                .foregroundStyle(anxietyColor)
-            Text("Avg: \(String(format: "%.1f", entry.averageAnxiety))")
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var sleepIndicator: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "bed.double.fill")
-                .foregroundStyle(.indigo)
-            Text("\(String(format: "%.1f", entry.hoursSlept))h")
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var medicationsIndicator: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "pills.fill")
-                .foregroundStyle(medicationsTaken ? .green : .gray)
-            Text(medicationsTaken ? "Meds" : "No meds")
-                .foregroundStyle(.secondary)
-        }
     }
 
     private var anxietyColor: Color {
@@ -166,8 +165,73 @@ struct EntryRow: View {
         }
     }
 
-    private var medicationsTaken: Bool {
-        entry.concertaTaken || entry.nortryptilineTaken
+    private var sleepColor: Color {
+        let hours = entry.hoursSlept
+        switch hours {
+        case 7...: return .green
+        case 6..<7: return .yellow
+        case 5..<6: return .orange
+        default: return .red
+        }
+    }
+
+    private var focusColor: Color {
+        let fog = entry.brainFog
+        switch fog {
+        case 0...1: return .green
+        case 2: return .yellow
+        case 3: return .orange
+        default: return .red
+        }
+    }
+
+    private var medicationStatus: String {
+        if let logs = entry.medicationLogs as? Set<MedicationLog> {
+            let taken = logs.filter { $0.taken }.count
+            let total = logs.count
+            if total == 0 { return "—" }
+            return "\(taken)/\(total)"
+        }
+        return "—"
+    }
+
+    private var medicationColor: Color {
+        if let logs = entry.medicationLogs as? Set<MedicationLog> {
+            let taken = logs.filter { $0.taken }.count
+            let applicable = logs.filter { !$0.notApplicable }.count
+            if applicable == 0 { return .gray }
+            if taken == applicable { return .green }
+            if taken > 0 { return .yellow }
+            return .red
+        }
+        return .gray
+    }
+}
+
+struct StatBadge: View {
+    let icon: String
+    let label: String
+    let value: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 2) {
+            HStack(spacing: 3) {
+                Image(systemName: icon)
+                    .font(.caption2)
+                    .foregroundStyle(color)
+                Text(value)
+                    .font(.caption)
+                    .fontWeight(.medium)
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 

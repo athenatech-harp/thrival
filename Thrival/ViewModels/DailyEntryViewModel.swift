@@ -11,14 +11,9 @@ class DailyEntryViewModel: ObservableObject {
     @Published var date: Date = Date()
     @Published var isEditing: Bool = false
 
-    // Medications
-    @Published var concertaTaken: Bool = false
-    @Published var concertaDose: Double = UserDefaults.standard.lastConcertaDose
-    @Published var concertaTime: Date = Date()
-    @Published var estradiolApplied: Bool = false
-    @Published var estradiolDosage: String = UserDefaults.standard.lastEstradiolDosage
-    @Published var nortryptilineTaken: Bool = false
-    @Published var nortryptilineDose: Double = UserDefaults.standard.lastNortryptilineDose
+    // Dynamic Medications
+    @Published var medications: [Medication] = []
+    @Published var medicationLogs: [UUID: MedicationLogState] = [:]
 
     // Sleep
     @Published var hoursSlept: Double = 7.0
@@ -53,6 +48,7 @@ class DailyEntryViewModel: ObservableObject {
 
     init(context: NSManagedObjectContext) {
         self.viewContext = context
+        loadMedications()
         loadTodayEntry()
     }
 
@@ -62,6 +58,27 @@ class DailyEntryViewModel: ObservableObject {
 
     var formattedDate: String {
         date.formatted(date: .long, time: .omitted)
+    }
+
+    var hasMedications: Bool {
+        !medications.isEmpty
+    }
+
+    func loadMedications() {
+        let request = Medication.fetchRequest(activeOnly: true)
+        medications = (try? viewContext.fetch(request)) ?? []
+
+        // Initialize log states for each medication
+        for medication in medications {
+            if medicationLogs[medication.id!] == nil {
+                medicationLogs[medication.id!] = MedicationLogState(
+                    status: .pending,
+                    dosage: medication.formattedDosage,
+                    timeTaken: nil,
+                    notes: ""
+                )
+            }
+        }
     }
 
     func loadTodayEntry() {
@@ -88,13 +105,18 @@ class DailyEntryViewModel: ObservableObject {
     }
 
     private func loadFromEntry(_ entry: DailyEntry) {
-        concertaTaken = entry.concertaTaken
-        concertaDose = entry.concertaDose
-        concertaTime = entry.concertaTime ?? Date()
-        estradiolApplied = entry.estradiolApplied
-        estradiolDosage = entry.estradiolDosage ?? ""
-        nortryptilineTaken = entry.nortryptilineTaken
-        nortryptilineDose = entry.nortryptilineDose
+        // Load medication logs
+        if let logs = entry.medicationLogs as? Set<MedicationLog> {
+            for log in logs {
+                guard let medId = log.medication?.id else { continue }
+                medicationLogs[medId] = MedicationLogState(
+                    status: log.status,
+                    dosage: log.dosage ?? "",
+                    timeTaken: log.timeTaken,
+                    notes: log.notes ?? ""
+                )
+            }
+        }
 
         hoursSlept = entry.hoursSlept
         sleepQuality = Int(entry.sleepQuality)
@@ -123,13 +145,15 @@ class DailyEntryViewModel: ObservableObject {
     }
 
     private func resetToDefaults() {
-        concertaTaken = false
-        concertaDose = UserDefaults.standard.lastConcertaDose
-        concertaTime = Date()
-        estradiolApplied = false
-        estradiolDosage = UserDefaults.standard.lastEstradiolDosage
-        nortryptilineTaken = false
-        nortryptilineDose = UserDefaults.standard.lastNortryptilineDose
+        // Reset medication logs to pending with default dosages
+        for medication in medications {
+            medicationLogs[medication.id!] = MedicationLogState(
+                status: .pending,
+                dosage: medication.formattedDosage,
+                timeTaken: nil,
+                notes: ""
+            )
+        }
 
         hoursSlept = 7.0
         sleepQuality = 3
@@ -167,24 +191,21 @@ class DailyEntryViewModel: ObservableObject {
         entry.date = Calendar.current.startOfDay(for: date)
         entry.dayOfWeek = dayOfWeek
 
-        // Medications
-        entry.concertaTaken = concertaTaken
-        entry.concertaDose = concertaDose
-        entry.concertaTime = concertaTaken ? concertaTime : nil
-        entry.estradiolApplied = estradiolApplied
-        entry.estradiolDosage = estradiolDosage
-        entry.nortryptilineTaken = nortryptilineTaken
-        entry.nortryptilineDose = nortryptilineDose
+        // Save medication logs
+        for medication in medications {
+            guard let medId = medication.id,
+                  let logState = medicationLogs[medId] else { continue }
 
-        // Save last used doses for smart defaults
-        if concertaTaken {
-            UserDefaults.standard.lastConcertaDose = concertaDose
-        }
-        if !estradiolDosage.isEmpty {
-            UserDefaults.standard.lastEstradiolDosage = estradiolDosage
-        }
-        if nortryptilineTaken {
-            UserDefaults.standard.lastNortryptilineDose = nortryptilineDose
+            let log = MedicationLog.findOrCreate(
+                in: viewContext,
+                medication: medication,
+                dailyEntry: entry
+            )
+
+            log.status = logState.status
+            log.dosage = logState.dosage
+            log.timeTaken = logState.timeTaken
+            log.notes = logState.notes
         }
 
         // Sleep
@@ -225,5 +246,37 @@ class DailyEntryViewModel: ObservableObject {
         } catch {
             print("Error saving entry: \(error)")
         }
+    }
+
+    // MARK: - Medication Helpers
+
+    func medicationLog(for medication: Medication) -> Binding<MedicationLogState> {
+        Binding(
+            get: {
+                self.medicationLogs[medication.id!] ?? MedicationLogState(
+                    status: .pending,
+                    dosage: medication.formattedDosage,
+                    timeTaken: nil,
+                    notes: ""
+                )
+            },
+            set: { newValue in
+                self.medicationLogs[medication.id!] = newValue
+            }
+        )
+    }
+}
+
+// MARK: - Medication Log State
+
+struct MedicationLogState {
+    var status: MedicationStatus
+    var dosage: String
+    var timeTaken: Date?
+    var notes: String
+
+    var isTaken: Bool {
+        get { status == .taken }
+        set { status = newValue ? .taken : .pending }
     }
 }

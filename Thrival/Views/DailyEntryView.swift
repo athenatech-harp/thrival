@@ -6,6 +6,7 @@ struct DailyEntryView: View {
 
     @State private var showingSaveConfirmation = false
     @State private var expandedSections: Set<String> = ["medications", "sleep", "anxiety"]
+    @State private var showingMedicationSettings = false
 
     init() {
         _viewModel = StateObject(wrappedValue: DailyEntryViewModel(context: PersistenceController.shared.container.viewContext))
@@ -49,6 +50,13 @@ struct DailyEntryView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingMedicationSettings) {
+                MedicationsView()
+                    .environment(\.managedObjectContext, viewContext)
+                    .onDisappear {
+                        viewModel.loadMedications()
+                    }
+            }
         }
         .sensoryFeedback(.success, trigger: showingSaveConfirmation)
     }
@@ -81,53 +89,48 @@ struct DailyEntryView: View {
             expandedSections.formSymmetricDifference(["medications"])
         } content: {
             VStack(spacing: 16) {
-                // Concerta
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Concerta taken", isOn: $viewModel.concertaTaken)
-                        .tint(.accentColor)
+                if viewModel.hasMedications {
+                    ForEach(viewModel.medications) { medication in
+                        MedicationEntryRow(
+                            medication: medication,
+                            logState: viewModel.medicationLog(for: medication)
+                        )
 
-                    if viewModel.concertaTaken {
-                        HStack {
-                            Text("Dose:")
-                                .foregroundStyle(.secondary)
-                            Stepper("\(Int(viewModel.concertaDose)) mg", value: $viewModel.concertaDose, in: 18...72, step: 18)
+                        if medication != viewModel.medications.last {
+                            Divider()
                         }
-                        .font(.subheadline)
-
-                        DatePicker("Time taken", selection: $viewModel.concertaTime, displayedComponents: .hourAndMinute)
-                            .font(.subheadline)
                     }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "pills")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+
+                        Text("No medications added")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Button("Add Medications") {
+                            showingMedicationSettings = true
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
                 }
 
-                Divider()
-
-                // Estradiol
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Estradiol patch applied", isOn: $viewModel.estradiolApplied)
-                        .tint(.accentColor)
-
-                    if viewModel.estradiolApplied {
-                        TextField("Dosage", text: $viewModel.estradiolDosage)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.subheadline)
-                    }
-                }
-
-                Divider()
-
-                // Nortryptiline
-                VStack(alignment: .leading, spacing: 8) {
-                    Toggle("Nortryptiline taken", isOn: $viewModel.nortryptilineTaken)
-                        .tint(.accentColor)
-
-                    if viewModel.nortryptilineTaken {
+                if viewModel.hasMedications {
+                    Button {
+                        showingMedicationSettings = true
+                    } label: {
                         HStack {
-                            Text("Dose:")
-                                .foregroundStyle(.secondary)
-                            Stepper("\(Int(viewModel.nortryptilineDose)) mg", value: $viewModel.nortryptilineDose, in: 10...150, step: 5)
+                            Image(systemName: "gear")
+                            Text("Manage Medications")
                         }
                         .font(.subheadline)
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 8)
                 }
             }
         }
@@ -354,6 +357,133 @@ struct DailyEntryView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12))
         }
         .animation(.easeInOut, value: showingSaveConfirmation)
+    }
+}
+
+// MARK: - Medication Entry Row
+
+struct MedicationEntryRow: View {
+    let medication: Medication
+    @Binding var logState: MedicationLogState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header with name and status picker
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(medication.name ?? "Unknown")
+                        .font(.headline)
+
+                    if !medication.formattedDosage.isEmpty {
+                        Text(medication.formattedDosage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Text(medication.frequencyEnum.shortLabel)
+                        .font(.caption2)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
+                }
+
+                Spacer()
+
+                // Status picker
+                statusPicker
+            }
+
+            // Expanded details when taken
+            if logState.status == .taken {
+                VStack(spacing: 12) {
+                    HStack {
+                        Text("Dosage:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        TextField("Dosage", text: $logState.dosage)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.subheadline)
+                    }
+
+                    DatePicker(
+                        "Time taken",
+                        selection: Binding(
+                            get: { logState.timeTaken ?? Date() },
+                            set: { logState.timeTaken = $0 }
+                        ),
+                        displayedComponents: .hourAndMinute
+                    )
+                    .font(.subheadline)
+                }
+                .padding(.leading, 4)
+            }
+        }
+    }
+
+    private var statusPicker: some View {
+        HStack(spacing: 8) {
+            StatusButton(
+                icon: "checkmark.circle.fill",
+                label: "Taken",
+                isSelected: logState.status == .taken,
+                color: .green
+            ) {
+                logState.status = .taken
+                if logState.timeTaken == nil {
+                    logState.timeTaken = Date()
+                }
+            }
+
+            StatusButton(
+                icon: "xmark.circle.fill",
+                label: "Skip",
+                isSelected: logState.status == .skipped,
+                color: .red
+            ) {
+                logState.status = .skipped
+            }
+
+            if !medication.frequencyEnum.requiresDailyTracking {
+                StatusButton(
+                    icon: "minus.circle.fill",
+                    label: "N/A",
+                    isSelected: logState.status == .notApplicable,
+                    color: .gray
+                ) {
+                    logState.status = .notApplicable
+                }
+            }
+        }
+    }
+}
+
+struct StatusButton: View {
+    let icon: String
+    let label: String
+    let isSelected: Bool
+    let color: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 2) {
+                Image(systemName: isSelected ? icon : icon.replacingOccurrences(of: ".fill", with: ""))
+                    .font(.title3)
+                    .foregroundStyle(isSelected ? color : .secondary)
+
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? color : .secondary)
+            }
+            .frame(minWidth: 50)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .background(isSelected ? color.opacity(0.15) : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(.plain)
     }
 }
 
